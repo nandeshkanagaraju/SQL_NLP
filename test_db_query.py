@@ -1,7 +1,6 @@
 import mysql.connector
 import yaml
 import os
-from fastmcp import FastMCP
 
 # -------------------- Paths --------------------
 CONFIG_FILE = "config.yaml"
@@ -31,24 +30,15 @@ db_config = {
     "database": schema["default_schema"]
 }
 
-# -------------------- Run SQL Query --------------------
-def run_query(query: str):
-    cnx = mysql.connector.connect(**db_config)
-    cursor = cnx.cursor(dictionary=True)
-    cursor.execute(query)
-    rows = cursor.fetchall()
-    cursor.close()
-    cnx.close()
-    return rows
+# -------------------- Connect and Query --------------------
+cnx = mysql.connector.connect(**db_config)
+cursor = cnx.cursor(dictionary=True)
+cursor.execute("SELECT * FROM employees LIMIT 5;")
+rows = cursor.fetchall()
 
-# -------------------- FastMCP Setup --------------------
-mcp = FastMCP("mysql-mcp")
+print("✅ First 5 rows of employees table:")
+for row in rows:
+    print(row)
 
-@mcp.tool()
-def sql_query(query: str):
-    """Run a SQL query on the MySQL database."""
-    return run_query(query)
-
-# -------------------- Main --------------------
-if __name__ == "__main__":
-    mcp.run()
+cursor.close()
+cnx.close()
