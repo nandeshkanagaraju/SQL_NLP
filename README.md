@@ -1,10 +1,10 @@
 # MySQL + NLP + MCP Integration Project
 
-## 🚀 Overview
+## Overview
 
 This project provides a robust and flexible framework for integrating MySQL databases with Natural Language Processing (NLP) capabilities, leveraging the Model Context Protocol (MCP) to enable natural language querying of your database. It abstracts away the complexities of SQL, allowing any Large Language Model (LLM) such as OpenAI, Claude, or Gemini to interact with your database using intuitive natural language commands.
 
-## ✨ Features
+## Features
 
 - **MySQL Database Connectivity**: Seamlessly connect to your MySQL database.
 - **Automated Schema Generation**: Automatically generate a YAML schema feed (`mcp_feed.yaml`) from your MySQL database structure.
@@ -12,7 +12,7 @@ This project provides a robust and flexible framework for integrating MySQL data
 - **Model Context Protocol (MCP) Integration**: Utilize MCP to enable LLMs to understand and execute database queries in natural language, enhancing accessibility and ease of use.
 - **AI Assistant for Natural Language Queries**: Interact with your database using a local AI assistant that translates natural language requests into SQL queries.
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 .
@@ -24,7 +24,7 @@ This project provides a robust and flexible framework for integrating MySQL data
 ├── test_db_query.py # Direct SQL query test script
 ```
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 
 ### 1. Install Dependencies
 
@@ -97,7 +97,7 @@ AI:
 ...
 ```
 
-## 🤔 Why MCP?
+## Why MCP?
 
 **Without MCP:**
 
@@ -107,7 +107,7 @@ You must write raw SQL queries manually (e.g., `SELECT * FROM employees LIMIT 5;
 
 You simply type natural language requests (e.g., "Show me first 5 employees"). The AI translates these requests into SQL, executes them against the database, and returns the results in a human-readable format.
 
-### ✅ Benefits of MCP in this project:
+### Benefits of MCP in this project:
 
 - **Abstraction**: Users do not need SQL knowledge to interact with the database.
 - **Portability**: Works seamlessly with any LLM (OpenAI, Claude, Gemini, etc.), providing flexibility in AI model choice.
