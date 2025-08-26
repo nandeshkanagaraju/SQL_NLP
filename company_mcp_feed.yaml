@@ -1,0 +1,121 @@
+default_schema: company_db
+dialect: mysql
+tables:
+- name: assignments
+  schema: company_db
+  title: Assignments
+  description: Table containing assignments data.
+  columns:
+  - name: assignment_id
+    type: INT
+    role: dimension
+    description: Column for assignment id.
+    agg: sum
+  - name: emp_id
+    type: INT
+    role: dimension
+    description: Column for emp id.
+    agg: sum
+  - name: project_id
+    type: INT
+    role: dimension
+    description: Column for project id.
+    agg: sum
+  - name: assignment_date
+    type: DATE
+    role: dimension
+    description: Column for assignment date.
+    agg: null
+
+- name: departments
+  schema: company_db
+  title: Departments
+  description: Table containing departments data.
+  columns:
+  - name: dept_id
+    type: INT
+    role: dimension
+    description: Column for dept id.
+    agg: sum
+  - name: dept_name
+    type: VARCHAR(100)
+    role: dimension
+    description: Column for dept name.
+    agg: null
+
+- name: employees
+  schema: company_db
+  title: Employees
+  description: Table containing employees data.
+  columns:
+  - name: emp_id
+    type: INT
+    role: dimension
+    description: Column for emp id.
+    agg: sum
+  - name: first_name
+    type: VARCHAR(50)
+    role: dimension
+    description: Column for first name.
+    agg: null
+  - name: last_name
+    type: VARCHAR(50)
+    role: dimension
+    description: Column for last name.
+    agg: null
+  - name: email
+    type: VARCHAR(100)
+    role: dimension
+    description: Column for email.
+    agg: null
+  - name: phone_number
+    type: VARCHAR(30)
+    role: dimension
+    description: Column for phone number.
+    agg: null
+  - name: hire_date
+    type: DATE
+    role: dimension
+    description: Column for hire date.
+    agg: null
+  - name: job_id
+    type: VARCHAR(50)
+    role: dimension
+    description: Column for job id.
+    agg: null
+  - name: salary
+    type: DECIMAL(10,2)
+    role: dimension
+    description: Column for salary.
+    agg: sum
+  - name: dept_id
+    type: INT
+    role: dimension
+    description: Column for dept id.
+    agg: sum
+
+- name: projects
+  schema: company_db
+  title: Projects
+  description: Table containing projects data.
+  columns:
+  - name: project_id
+    type: INT
+    role: dimension
+    description: Column for project id.
+    agg: sum
+  - name: project_name
+    type: VARCHAR(100)
+    role: dimension
+    description: Column for project name.
+    agg: null
+  - name: start_date
+    type: DATE
+    role: dimension
+    description: Column for start date.
+    agg: null
+  - name: end_date
+    type: DATE
+    role: dimension
+    description: Column for end date.
+    agg: null
