@@ -1,37 +1,52 @@
+import os
 import yaml
+import pandas as pd
 import mysql.connector
 from openai import OpenAI
-from tabulate import tabulate
-import pandas as pd
-import os
 import re
 
-# ---------- Config ----------
+# ---------------- CONFIG ----------------
 MODEL = "gpt-4o-mini"
-MAX_HISTORY_MESSAGES = 20   
-MAX_SQL_HISTORY = 5         
-CONFIG_FILE = "config.yaml"
-YAML_FILE = os.path.join("outputs", "mcp_feed.yaml")
-# ----------------------------
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
+YAML_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "outputs", "mcp_feed.yaml")
 
-# -------------------- Load Config and Schema --------------------
-def load_config(config_file=CONFIG_FILE):
-    if not os.path.exists(config_file):
-        raise FileNotFoundError(f"{config_file} not found.")
-    with open(config_file) as f:
+# ---------------- HELPERS ----------------
+def display_df(df: pd.DataFrame) -> str:
+    """Display full DataFrame without truncation."""
+    if df is None or df.empty:
+        return "No results."
+    pd.set_option("display.max_rows", None)
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.width", 200)
+    pd.set_option("display.colheader_justify", "center")
+    return df.to_string(index=False)
+
+def extract_sql(llm_response: str) -> str:
+    """Extract the first SQL statement from LLM response."""
+    text = re.sub(r"```sql|```", "", llm_response, flags=re.IGNORECASE).strip()
+    match = re.search(r"(SELECT|INSERT|UPDATE|DELETE).*?;", text, flags=re.IGNORECASE | re.DOTALL)
+    if match:
+        return match.group(0)
+    return text.strip()
+
+# ---------------- LOAD CONFIG & SCHEMA ----------------
+def load_config(file_path=CONFIG_FILE):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} not found.")
+    with open(file_path) as f:
         return yaml.safe_load(f)
 
-def load_schema(yaml_file=YAML_FILE):
-    if not os.path.exists(yaml_file):
-        raise FileNotFoundError(f"{yaml_file} not found.")
-    with open(yaml_file) as f:
+def load_schema(file_path=YAML_FILE):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"{file_path} not found.")
+    with open(file_path) as f:
         return yaml.safe_load(f)
 
 config = load_config()
 schema = load_schema()
-schema_text = yaml.dump(schema)  
+schema_text = yaml.dump(schema)
 
-# -------------------- DB Connection --------------------
+# ---------------- DATABASE ----------------
 conn = mysql.connector.connect(
     host=config["db"]["host"],
     user=config["db"]["user"],
@@ -39,76 +54,93 @@ conn = mysql.connector.connect(
     database=schema["default_schema"]
 )
 
-# -------------------- OpenAI Setup --------------------
+# ---------------- OPENAI ----------------
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# -------------------- Memory --------------------
-conversation_history = []
-sql_history = []
-last_df = None
-last_sql = None
+# ---------------- MEMORY ----------------
+class ConversationMemory:
+    """Stores full conversation with SQL and results"""
+    def __init__(self):
+        self.steps = []  # Each step: {"user": str, "sql": str, "df": pd.DataFrame}
 
-BASE_SYSTEM_PROMPT = """You are a MySQL SQL generator assistant.
-- Always output a single SQL query ending with a semicolon.
-- Never use Markdown or code fences.
-- You have memory of the conversation and must resolve pronouns like "them", "their", "same", "above", "those" using prior context.
-- When modifying previous queries, keep WHERE, JOIN, GROUP BY, ORDER BY, and LIMIT unless the user overrides them.
-- "names" = CONCAT(first_name, ' ', last_name) if available.
-- Keep SQL simple and valid MySQL.
-"""
+    def add_step(self, user_query, sql_query, df):
+        self.steps.append({"user": user_query, "sql": sql_query, "df": df})
 
-# -------------------- Helpers --------------------
-# (reuse all functions from your previous code, e.g., strip_code_fences, ensure_name_columns, df_to_table, try_parse_int,
-# pick_sort_column, parse_filter_expression, apply_followup, etc.)
-# Make sure all references to schema/db are generic.
+    def get_last_df(self):
+        for step in reversed(self.steps):
+            if step["df"] is not None and not step["df"].empty:
+                return step["df"]
+        return None
 
-# -------------------- LLM path --------------------
-def build_messages(user_query: str):
-    messages = [
-        {"role": "system", "content": BASE_SYSTEM_PROMPT},
-        {"role": "system", "content": f"Schema:\n{schema_text}"}
-    ]
-    messages.extend(conversation_history[-MAX_HISTORY_MESSAGES:])
-    if sql_history:
-        sql_context = "\n".join(
-            [f"User: {h['user']}\nSQL: {h['sql']}" for h in sql_history[-MAX_SQL_HISTORY:]]
-        )
-        messages.append({
-            "role": "system",
-            "content": "Recent SQL history:\n" + sql_context
-        })
-    messages.append({"role": "user", "content": user_query})
-    return messages
+memory = ConversationMemory()
 
-def nlp_to_sql(user_query: str) -> str:
-    global conversation_history, sql_history, last_sql
-    messages = build_messages(user_query)
-    resp = client.chat.completions.create(model=MODEL, messages=messages, temperature=0)
-    sql_query = resp.choices[0].message.content.strip()
-    sql_query = re.sub(r"^```.*|```$", "", sql_query).strip()
-
-    conversation_history.append({"role": "user", "content": user_query})
-    conversation_history.append({"role": "assistant", "content": sql_query})
-    sql_history.append({"user": user_query, "sql": sql_query})
-
-    # Keep memory within limits
-    conversation_history[:] = conversation_history[-MAX_HISTORY_MESSAGES:]
-    sql_history[:] = sql_history[-MAX_SQL_HISTORY:]
-    last_sql = sql_query
-    return sql_query
-
-# -------------------- DB Execution --------------------
-def run_query(sql_query: str) -> pd.DataFrame:
+# ---------------- SQL EXECUTION ----------------
+def execute_sql(sql_query: str) -> pd.DataFrame:
     cur = conn.cursor(dictionary=True)
     cur.execute(sql_query)
     rows = cur.fetchall()
     cur.close()
-    df = pd.DataFrame(rows)
-    return df
+    return pd.DataFrame(rows)
 
-# -------------------- Chat Loop --------------------
-def chat_loop():
-    global last_df
+# ---------------- FOLLOW-UP SQL ----------------
+def followup_sql(user_query, last_df):
+    """
+    Generate SQL limited to previous result if possible.
+    Supports selecting columns and ordering on previous rows only.
+    """
+    if last_df is None or last_df.empty:
+        return None
+
+    # Extract requested columns from user query
+    cols = re.findall(r"their (\w+)|only (\w+)|give me (\w+)", user_query.lower())
+    cols = [c for t in cols for c in t if c]
+    if not cols:
+        cols = list(last_df.columns)
+
+    # Use previous emp_ids if available
+    if 'emp_id' in last_df.columns:
+        ids = last_df['emp_id'].tolist()
+        id_str = ','.join(map(str, ids))
+        sql = f"SELECT {', '.join(cols)} FROM employees WHERE emp_id IN ({id_str})"
+
+        # Check for sorting
+        match = re.search(r"sort.*by (\w+)", user_query.lower())
+        if match:
+            order_col = match.group(1)
+            order = "DESC" if "desc" in user_query.lower() else "ASC"
+            sql += f" ORDER BY {order_col} {order}"
+        sql += ";"
+        return sql
+
+    # Fallback: generate SQL via LLM if no emp_id
+    prompt = f"""
+    You have the previous result (columns: {', '.join(last_df.columns)}).
+    User query: {user_query}
+    Generate SQL using only available context, ending with a semicolon.
+    """
+    resp = client.chat.completions.create(
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0
+    )
+    return extract_sql(resp.choices[0].message.content)
+
+# ---------------- SQL GENERATION ----------------
+def generate_sql(user_query: str) -> str:
+    """Generate SQL using full conversation history"""
+    messages = [{"role": "system", "content": f"You are a MySQL SQL assistant. Schema:\n{schema_text}"}]
+    for step in memory.steps:
+        messages.append({"role": "user", "content": step["user"]})
+        messages.append({"role": "assistant", "content": step["sql"]})
+    messages.append({"role": "user", "content": user_query})
+
+    resp = client.chat.completions.create(model=MODEL, messages=messages, temperature=0)
+    llm_output = resp.choices[0].message.content.strip()
+    sql_query = extract_sql(llm_output)
+    return sql_query
+
+# ---------------- CHAT LOOP ----------------
+def chat():
     print("SQL Assistant ready! Ask me anything.\n")
     while True:
         user_query = input("You: ").strip()
@@ -116,26 +148,34 @@ def chat_loop():
             print("Goodbye!")
             break
 
-        # 1) Try follow-up on last_df
-        handled_df = apply_followup(user_query, last_df)
-        if handled_df is not None:
-            last_df = handled_df
-            print("\n Results (from previous set):\n")
-            print(df_to_table(last_df))
-            continue
+        last_df = memory.get_last_df()
+        df = None
 
-        # 2) Otherwise, ask LLM
-        sql_query = nlp_to_sql(user_query)
-        print(f"\n SQL Generated:\n{sql_query}\n")
+        # Determine if follow-up
+        if last_df is not None and any(x in user_query.lower() for x in ["their", "them", "these", "those", "top"]):
+            try:
+                sql_query = followup_sql(user_query, last_df)
+                df = execute_sql(sql_query)
+            except Exception as e:
+                print(f"Error executing follow-up SQL: {e}")
+                sql_query = None
+        else:
+            try:
+                sql_query = generate_sql(user_query)
+                df = execute_sql(sql_query)
+            except Exception as e:
+                print(f"Error running SQL: {e}")
+                sql_query = None
 
-        try:
-            last_df = run_query(sql_query)
-            last_df = ensure_name_columns(last_df)
-            print(" Results:\n")
-            print(df_to_table(last_df))
-        except Exception as e:
-            print(f"Error: {e}")
-        print("\n" + "="*60 + "\n")
+        # Save in memory
+        memory.add_step(user_query, sql_query, df)
+
+        # Display
+        if sql_query:
+            print(f"\nSQL Generated:\n{sql_query}\n")
+        print("Results:\n")
+        print(display_df(df))
+        print("\n" + "="*80 + "\n")
 
 if __name__ == "__main__":
-    chat_loop()
+    chat()

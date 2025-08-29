@@ -3,13 +3,14 @@ import yaml
 import os
 
 # -------------------- Load Config --------------------
-CONFIG_FILE = "config.yaml"
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
 
 def load_config(config_file=CONFIG_FILE):
     if not os.path.exists(config_file):
-        raise FileNotFoundError(f"{config_file} not found.")
+        raise FileNotFoundError(f"{config_file} not found at {config_file}")
     with open(config_file) as f:
         return yaml.safe_load(f)
+
 
 config = load_config()
 
