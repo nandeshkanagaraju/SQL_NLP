@@ -36,7 +36,7 @@ cursor = cnx.cursor(dictionary=True)
 cursor.execute("SELECT * FROM employees LIMIT 5;")
 rows = cursor.fetchall()
 
-print("✅ First 5 rows of employees table:")
+print("First 5 rows of employees table:")
 for row in rows:
     print(row)
 

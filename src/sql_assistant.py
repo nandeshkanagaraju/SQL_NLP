@@ -109,32 +109,32 @@ def run_query(sql_query: str) -> pd.DataFrame:
 # -------------------- Chat Loop --------------------
 def chat_loop():
     global last_df
-    print("🤖 SQL Assistant ready! Ask me anything.\n")
+    print("SQL Assistant ready! Ask me anything.\n")
     while True:
         user_query = input("You: ").strip()
         if user_query.lower() in {"exit", "quit", "bye"}:
-            print("👋 Goodbye!")
+            print("Goodbye!")
             break
 
         # 1) Try follow-up on last_df
         handled_df = apply_followup(user_query, last_df)
         if handled_df is not None:
             last_df = handled_df
-            print("\n📊 Results (from previous set):\n")
+            print("\n Results (from previous set):\n")
             print(df_to_table(last_df))
             continue
 
         # 2) Otherwise, ask LLM
         sql_query = nlp_to_sql(user_query)
-        print(f"\n📜 SQL Generated:\n{sql_query}\n")
+        print(f"\n SQL Generated:\n{sql_query}\n")
 
         try:
             last_df = run_query(sql_query)
             last_df = ensure_name_columns(last_df)
-            print("📊 Results:\n")
+            print(" Results:\n")
             print(df_to_table(last_df))
         except Exception as e:
-            print(f"⚠️ Error: {e}")
+            print(f"Error: {e}")
         print("\n" + "="*60 + "\n")
 
 if __name__ == "__main__":

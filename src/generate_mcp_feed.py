@@ -52,7 +52,7 @@ def get_db_schema(host, user, password, database):
         return tables_data
 
     except mysql.connector.Error as err:
-        print(f"❌ Database error: {err}")
+        print(f"Database error: {err}")
         return None
     finally:
         if cnx:
@@ -73,7 +73,7 @@ def generate_mcp_feed_yaml(db_schema_data, default_schema):
     with open(output_file, "w") as f:
         yaml.dump(mcp_feed, f, indent=2, sort_keys=False)
 
-    print(f"✅ MCP feed YAML generated at {output_file}")
+    print(f"MCP feed YAML generated at {output_file}")
 
 # -------------------- Main --------------------
 if __name__ == "__main__":
@@ -81,4 +81,4 @@ if __name__ == "__main__":
     if schema_data:
         generate_mcp_feed_yaml(schema_data, config['db']['database'])
     else:
-        print("❌ Failed to retrieve database schema.")
+        print("Failed to retrieve database schema.")
