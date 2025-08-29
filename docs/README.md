@@ -1,116 +1,194 @@
 # MySQL + NLP + MCP Integration Project
 
 ## Overview
+This project provides a framework to connect a MySQL database with natural language processing (NLP) capabilities. Using **Model Context Protocol (MCP)**, any Large Language Model (LLM) like OpenAI, Claude, or Gemini can query your database using natural language, without writing raw SQL.
 
-This project provides a robust and flexible framework for integrating MySQL databases with Natural Language Processing (NLP) capabilities, leveraging the Model Context Protocol (MCP) to enable natural language querying of your database. It abstracts away the complexities of SQL, allowing any Large Language Model (LLM) such as OpenAI, Claude, or Gemini to interact with your database using intuitive natural language commands.
+The project is ideal for:
+- Making SQL accessible to non-technical users
+- Experimenting with AI-powered database assistants
+- Generating YAML schema feeds for MCP
+
+
+
+
+---
 
 ## Features
+- **MySQL Database Connectivity:** Seamlessly connect to your MySQL database.
+- **Automated Schema Generation:** Generates a YAML feed (`mcp_feed.yaml`) from your database schema.
+- **Flexible Database Querying:** Query via SQL or natural language using AI assistant.
+- **MCP Integration:** Allows LLMs to interpret and execute database queries.
+- **Advanced Context Awareness:** Maintain conversation context to handle multi-step queries.
 
-- **MySQL Database Connectivity**: Seamlessly connect to your MySQL database.
-- **Automated Schema Generation**: Automatically generate a YAML schema feed (`mcp_feed.yaml`) from your MySQL database structure.
-- **Flexible Database Querying**: Query the database directly using SQL or via an AI assistant using natural language.
-- **Model Context Protocol (MCP) Integration**: Utilize MCP to enable LLMs to understand and execute database queries in natural language, enhancing accessibility and ease of use.
-- **AI Assistant for Natural Language Queries**: Interact with your database using a local AI assistant that translates natural language requests into SQL queries.
+
+
+
+---
 
 ## Project Structure
 
-```
 .
-├── config.yaml # Database connection config (edit with your credentials)
-├── example_schema.yaml # Example schema YAML
-├── generate_mcp_feed.py # Script to generate mcp_feed.yaml from MySQL schema
-├── mysql_mcp_server.py # MCP server exposing MySQL queries as a tool
-├── sql_assistant.py # AI assistant that queries MySQL via MCP
-├── test_db_query.py # Direct SQL query test script
-```
+.
+├── config/
+├── docs/
+├── src/
+│   ├── generate_mcp_feed.py
+│   ├── mysql_mcp_server.py
+│   ├── sql_assistant.py
+│   └── test_db_query.py
+├── .DS_Store
+├── .env.example
+├── .gitignore
+├── config.yaml
+├── requirements.txt
+└── outputs/
+
+
+
+---
 
 ## Setup Instructions
 
-### 1. Install Dependencies
-
-Ensure Python 3.8+ is installed. Then, install the required packages:
-
+### 1. Clone the Repository
 ```bash
-pip install mysql-connector-python pyyaml fastmcp
-# (Optional: Also install OpenAI/Claude/Gemini SDKs if you plan to use AI assistants.)
+git clone https://github.com/nandeshkanagaraju/SQL_NLP.git
+cd SQL_NLP
 ```
 
-### 2. Configure Database
+### 2. Create a Python Virtual Environment
+```bash
+python3 -m venv venv
+source venv/bin/activate   # macOS/Linux
+venc\Scripts\activate      # Windows
+```
 
-Edit the `config.yaml` file with your MySQL connection details:
+### 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
 
+Dependencies include:
+
+- `mysql-connector-python`
+- `pyyaml`
+- `fastmcp`
+- `openai` (optional if using OpenAI models)
+- `pandas`
+
+### 4. Configure Database
+
+Create a `config.yaml` in the root folder:
 ```yaml
 db:
   host: "localhost"
   user: "root"
   password: "your_password"
+  database: "database"
 ```
 
-### 3. Generate Schema Feed
+Also create `.env` for API keys (if using OpenAI/other LLMs):
+```
+OPENAI_API_KEY=your_openai_api_key
+or
+Use export"your_openai_api_key"
+```
 
-Run the schema generator script to create `outputs/mcp_feed.yaml`. This script connects to your MySQL database, reads all table and column information, and saves the schema details.
+### 5. Create MySQL Database and Table (Example)
+```sql
+CREATE DATABASE company_db;
 
+USE company_db;
+
+CREATE TABLE employees (
+    emp_id INT PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    email VARCHAR(100),
+    phone_number VARCHAR(50),
+    hire_date DATE,
+    job_id VARCHAR(50),
+    salary DECIMAL(10,2),
+    dept_id INT
+);
+
+INSERT INTO employees (emp_id, first_name, last_name, email, phone_number, hire_date, job_id, salary, dept_id)
+VALUES
+(46, 'Phillip', 'Brown', 'phillip.brown45@yahoo.com', '(500)888-6354', '2021-12-31', 'Hotel manager', 119708.94, 8),
+(60, 'Steven', 'Scott', 'steven.scott59@yahoo.com', '001-695-645-8290', '2022-01-14', 'Sport and exercise psychologist', 119548.28, 9),
+(7, 'Sherri', 'Braun', 'sherri.braun6@gmail.com', '001-478-530-5390x10855', '2025-01-12', 'Contractor', 119310.50, 5),
+(139, 'Ashley', 'Wilson', 'ashley.wilson138@hotmail.com', '(941)464-0350x78524', '2025-05-17', 'Industrial/product designer', 119230.55, 3),
+(17, 'Tasha', 'Reynolds', 'tasha.reynolds16@hotmail.com', '+1-804-427-7135x7058', '2024-07-10', 'Press photographer', 119094.92, 2);
+```
+
+### 6. Generate MCP Feed
 ```bash
-python generate_mcp_feed.py
+python3 src/generate_mcp_feed.py
 ```
+This will create `outputs/mcp_feed.yaml` containing your database schema.
 
-### 4. Test Database Query
-
-Run a quick query to verify your database connection and setup:
-
+### 7. Test Database Connection
 ```bash
-python test_db_query.py
+python3 src/test_db_query.py
 ```
-
 Example output:
-
-```lua
+```
 ✅ First 5 rows of employees table:
-{'id': 1, 'name': 'Alice', 'role': 'Engineer'}
-{'id': 2, 'name': 'Bob', 'role': 'Manager'}
-...
+{'emp_id': 46, 'first_name': 'Phillip', 'last_name': 'Brown', ...}
 ```
 
-### 5. Run MCP Server
-
-Start the MCP server to expose your MySQL database as a tool. This enables AI assistants to query your database using natural language.
-
+### 8. Run MCP Server
 ```bash
-python mysql_mcp_server.py
+python3 src/mysql_mcp_server.py
 ```
+This exposes your database to any LLM via MCP.
 
-### 6. Use SQL Assistant
-
-Try the AI assistant locally to interact with your database using natural language:
-
+### 9. Use SQL Assistant (NLP)
 ```bash
-python sql_assistant.py
+python3 src/sql_assistant.py
 ```
-
 Example interaction:
+```
+You: top 5 employees
+SQL Generated:
+SELECT * FROM employees ORDER BY salary DESC LIMIT 5;
 
-```bash
-You: show me first 5 employees
-AI: 
-{'id': 1, 'name': 'Alice', 'role': 'Engineer'}
-{'id': 2, 'name': 'Bob', 'role': 'Manager'}
-...
+Results:
+ emp_id first_name last_name email ...
+   46  Phillip    Brown  phillip.brown45@yahoo.com ...
 ```
 
-## Why MCP?
+Ask follow-up queries like:
 
-**Without MCP:**
+- `You: give me their email`
+- `You: sort them by last_name`
+- `You: top 3 salaries`
 
-You must write raw SQL queries manually (e.g., `SELECT * FROM employees LIMIT 5;`). This requires SQL knowledge and can be cumbersome for non-technical users.
 
-**With MCP:**
 
-You simply type natural language requests (e.g., "Show me first 5 employees"). The AI translates these requests into SQL, executes them against the database, and returns the results in a human-readable format.
 
-### Benefits of MCP in this project:
+---
 
-- **Abstraction**: Users do not need SQL knowledge to interact with the database.
-- **Portability**: Works seamlessly with any LLM (OpenAI, Claude, Gemini, etc.), providing flexibility in AI model choice.
-- **Scalability**: The framework is designed to be extensible, allowing for easy integration of more tools (e.g., APIs, file systems, analytics platforms) in the future.
+## Security Features
+
+- **No raw passwords in code:** Use `config.yaml` and `.env` for sensitive info.
+- **Environment variables:** Store API keys securely.
+- **Restricted queries:** MCP server executes controlled queries only.
+
+---
+
+## Notes
+
+- Works with any LLM that supports MCP.
+- Conversation memory allows multi-step natural language queries.
+- Fully compatible with MySQL 8+.
+
+
+
+
+---
+
+## Optional: Run With Docker (Future)
+
+You can containerize the project for production deployment.
 
 
