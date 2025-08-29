@@ -28,7 +28,6 @@ The project is ideal for:
 ## Project Structure
 
 .
-.
 ├── config/
 ├── docs/
 ├── src/
@@ -42,6 +41,7 @@ The project is ideal for:
 ├── config.yaml
 ├── requirements.txt
 └── outputs/
+
 
 
 
